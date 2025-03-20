@@ -158,7 +158,7 @@ class slideshow:
         cd = self.countdown
         while (cd > 0):
             time_process = time.time()
-            self.display.message('Starting in %d' % (cd))
+            self.display.message('Starting in %d\n\n\n This will be a lot slower than the count down says. \n Fetching & shuffling images from USB -- John' % (cd))
             cd -= 1
             time_process = time.time() - time_process
             if time_process < 1.0:

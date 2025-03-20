@@ -19,6 +19,7 @@ import subprocess
 import os
 import logging
 import json
+import random
 
 from modules.helper import helper
 from modules.network import RequestResult
@@ -330,7 +331,13 @@ class USB_Photos(BaseService):
 
     def getAlbumInfo(self, path, files):
         images = []
+        image_count = 0
+        max_images = 200
+        random.shuffle(files) # give some randomization to the file order
         for filename in files:
+            image_count += 1
+            if image_count >= max_images:
+                return images
             fullFilename = os.path.join(path, filename)
             dim = helper.getImageSize(fullFilename)
             readable = True

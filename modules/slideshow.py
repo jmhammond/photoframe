@@ -229,7 +229,8 @@ class slideshow:
         imageSizing = self.settings.getUser('imagesizing')
 
         # Make sure it's oriented correctly
-        filename = helper.autoRotate(image.filename)
+        # Nope... instead we'll use ImageMagick's -auto-orient.
+        # filename = helper.autoRotate(image.filename)
 
         # At this point, we have a good image, store it if allowed
         if image.cacheAllow and not image.cacheUsed:

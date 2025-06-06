@@ -291,9 +291,9 @@ class helper:
                 cmd = [
                     'convert',
                     filename + '[0]',
+                    '-auto-orient',
                     '-resize',
                     '%sx%s' % (adjWidth, adjHeight),
-                    '-auto-orient',
                     '-gravity',
                     'center',
                     '-crop',
@@ -305,6 +305,7 @@ class helper:
                 cmd = [
                     'convert',
                     filename + '[0]',
+                    '-auto-orient',
                     '-resize',
                     resizeString % (displayWidth, displayHeight),
                     '-gravity',
@@ -313,7 +314,6 @@ class helper:
                     '%sx%s+0+0' % (displayWidth, displayHeight),
                     '+repage',
                     '-blur',
-                    '-auto-orient',
                     '0x12',
                     '-brightness-contrast',
                     '-20x0',
@@ -424,6 +424,7 @@ class helper:
                       '-transpose', '-rotate 90', '-transverse', '-rotate 270']
         with open(os.devnull, 'wb') as void:
             result = debug.subprocess_check_output(['/usr/bin/jpegexiforient', ifile])  # , stderr=void)
+            logging.debug("Orientation is %d", result)
         if result:
             orient = int(result)-1
             if not (0 < orient < len(parameters)):

@@ -252,7 +252,8 @@ class helper:
             if padding < 20 and not autoChoose:
                 logging.debug('That\'s less than 20px so skip reframing (%dx%d => %dx%d)',
                               width, height, adjWidth, adjHeight)
-                return filename
+                #return filename
+                zoomOnly = True
 
             if padding < 60 and autoChoose:
                 zoomOnly = True

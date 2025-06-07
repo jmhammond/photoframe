@@ -656,9 +656,9 @@ class BaseService:
             # No matter what, we need to track that we considered this image
             self.memory.remember(image.id, keywords)
 
-            if not self.isCorrectOrientation(image.dimensions, displaySize):
-                logging.debug("Skipping image '%s' due to wrong orientation!" % orgFilename)
-                continue
+            # if not self.isCorrectOrientation(image.dimensions, displaySize):
+            #     logging.debug("Skipping image '%s' due to wrong orientation!" % orgFilename)
+            #     continue
             if image.mimetype is not None and image.mimetype not in supportedMimeTypes:
                 # Make sure we don't get a video, unsupported for now (gif is usually bad too)
                 logging.debug('Skipping unsupported media: %s' % (image.mimetype))
@@ -683,9 +683,9 @@ class BaseService:
             # No matter what, we need to track that we considered this image
             self.memory.remember(image.id, keywords)
 
-            if not self.isCorrectOrientation(image.dimensions, displaySize):
-                logging.debug("Skipping image '%s' due to wrong orientation!" % orgFilename)
-                continue
+            # if not self.isCorrectOrientation(image.dimensions, displaySize):
+            #     logging.debug("Skipping image '%s' due to wrong orientation!" % orgFilename)
+            #     continue
             if image.mimetype is not None and image.mimetype not in supportedMimeTypes:
                 # Make sure we don't get a video, unsupported for now (gif is usually bad too)
                 logging.debug('Skipping unsupported media: %s' % (image.mimetype))

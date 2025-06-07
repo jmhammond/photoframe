@@ -345,16 +345,16 @@ class USB_Photos(BaseService):
                 continue
                 
             # Get image dimensions (this is the expensive operation)
-            dim = helper.getImageSize(fullFilename)
-            if dim is None:
-                logging.warning('File %s has unknown format, skipping', fullFilename)
-                continue
+            # dim = helper.getImageSize(fullFilename)
+            # if dim is None:
+            #     logging.warning('File %s has unknown format, skipping', fullFilename)
+            #     continue
     
             item = BaseService.createImageHolder(self)
             item.setId(self.hashString(fullFilename))
             item.setUrl(fullFilename).setSource(fullFilename)
             item.setMimetype(helper.getMimetype(fullFilename))
-            item.setDimensions(dim['width'], dim['height'])
+            #item.setDimensions(dim['width'], dim['height'])
             item.setFilename(filename)
             item.allowCache(False)  # Disable caching for USB images
             images.append(item)

@@ -28,7 +28,6 @@ class slideshow:
               "settingsChange", "memoryForget", "clearCache", "forgetPreload"]
 
     def __init__(self, display, settings, colormatch, history):
-        self.countdown = 0
         self.thread = None
         self.services = None
         self.display = display
@@ -51,12 +50,6 @@ class slideshow:
         self.supportedFormats = helper.getSupportedTypes()
 
         self.running = True
-
-    def setCountdown(self, seconds):
-        if seconds < 1:
-            self.countdown = 0
-        else:
-            self.countdown = seconds
 
     def getCurrentImage(self):
         return self.imageCurrent.filename, self.imageCurrent.mimetype
@@ -154,15 +147,6 @@ class slideshow:
 
     def startupScreen(self):
         slideshow.SHOWN_IP = True
-        # Once we have IP, show for 5s
-        cd = self.countdown
-        while (cd > 0):
-            time_process = time.time()
-            self.display.message('Starting in %d\n\n\n This will be a lot slower than the count down says. \n Fetching & shuffling images from USB -- John' % (cd))
-            cd -= 1
-            time_process = time.time() - time_process
-            if time_process < 1.0:
-                time.sleep(1.0 - time_process)
         self.display.clear()
 
     def waitForNetwork(self):
@@ -236,6 +220,8 @@ class slideshow:
         # At this point, we have a good image, store it if allowed
         if image.cacheAllow and not image.cacheUsed:
             self.cacheMgr.setCachedImage(filename, image.getCacheId())
+
+        return filename
 
         # Frame it
         if imageSizing == 'blur':

@@ -331,35 +331,34 @@ class USB_Photos(BaseService):
 
     def getAlbumInfo(self, path, files):
         images = []
-        image_count = 0
         max_images = 200
-        random.shuffle(files) # give some randomization to the file order
-        for filename in files:
-            image_count += 1
-            if image_count >= max_images:
-                return images
+        
+        # Use random.sample for better efficiency
+        selected_files = random.sample(image_files, min(max_images, len(image_files)))
+        
+        for filename in selected_files:
             fullFilename = os.path.join(path, filename)
+            
+            # Quick existence check first
+            if not os.path.exists(fullFilename):
+                logging.warning('File %s does not exist, skipping', fullFilename)
+                continue
+                
+            # Get image dimensions (this is the expensive operation)
             dim = helper.getImageSize(fullFilename)
-            readable = True
             if dim is None:
-                try:
-                    with open(fullFilename, 'rb') as f:
-                        f.read(1)
-                    logging.warning('File %s has unknown format, skipping', fullFilename)
-                    continue
-                except Exception:
-                    readable = False
-
-            if os.path.exists(fullFilename) and readable:
-                item = BaseService.createImageHolder(self)
-                item.setId(self.hashString(fullFilename))
-                item.setUrl(fullFilename).setSource(fullFilename)
-                item.setMimetype(helper.getMimetype(fullFilename))
-                item.setDimensions(dim['width'], dim['height'])
-                item.setFilename(filename)
-                images.append(item)
-            else:
-                logging.warning('File %s could not be read. Could be USB issue, try rebooting', fullFilename)
+                logging.warning('File %s has unknown format, skipping', fullFilename)
+                continue
+    
+            item = BaseService.createImageHolder(self)
+            item.setId(self.hashString(fullFilename))
+            item.setUrl(fullFilename).setSource(fullFilename)
+            item.setMimetype(helper.getMimetype(fullFilename))
+            item.setDimensions(dim['width'], dim['height'])
+            item.setFilename(filename)
+            item.allowCache(False)  # Disable caching for USB images
+            images.append(item)
+            
         return images
 
     def requestUrl(self, url, destination=None, params=None, data=None, usePost=False):

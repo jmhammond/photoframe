@@ -210,20 +210,23 @@ class slideshow:
 
     def process(self, image):
         logging.debug('Processing %s', image.id)
-        imageSizing = self.settings.getUser('imagesizing')
 
-        # Make sure it's oriented correctly
-        # Nope... instead we'll use ImageMagick's -auto-orient.
-        # filename = helper.autoRotate(image.filename)
-        filename = image.filename
-
-        # At this point, we have a good image, store it if allowed
-        if image.cacheAllow and not image.cacheUsed:
-            self.cacheMgr.setCachedImage(filename, image.getCacheId())
+        # Skip caching for USB images since they're already local
+        if hasattr(image, 'contentProvider') and 'USB' in str(image.contentProvider):
+            logging.debug('Skipping cache for USB image')
+            filename = image.filename
+        else:
+            # for network images
+            if image.cacheAllow and not image.cacheUsed:
+                self.cacheMgr.setCachedImage(filename, image.getCacheId())
+            filename = image.filename
 
         return filename
 
+        # skip the below logic because the image has been framed.
+
         # Frame it
+        imageSizing = self.settings.getUser('imagesizing')
         if imageSizing == 'blur':
             filename = helper.makeFullframe(filename, self.settings.getUser('width'), self.settings.getUser('height'))
         elif imageSizing == 'zoom':
@@ -277,7 +280,7 @@ class slideshow:
             i += 1
             time_process = time.time()
 
-            if (i % 10) == 0:
+            if (i % 50) == 0:
                 self.cacheMgr.garbageCollect()
 
             displaySize = {'width': self.settings.getUser('width'), 'height': self.settings.getUser(

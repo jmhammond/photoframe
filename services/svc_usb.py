@@ -372,9 +372,10 @@ class USB_Photos(BaseService):
 
         if destination is None or not os.path.isfile(filename):
             result.setResult(RequestResult.SUCCESS).setHTTPCode(400)
-        elif recSize is not None and helper.scaleImage(filename, destination, recSize):
-            result.setFilename(destination)
-            result.setResult(RequestResult.SUCCESS).setHTTPCode(200)
+        # don't resize, because I'm assuming they're already formatted.
+        # elif recSize is not None and helper.scaleImage(filename, destination, recSize):
+        #     result.setFilename(destination)
+        #     result.setResult(RequestResult.SUCCESS).setHTTPCode(200)
         elif helper.copyFile(filename, destination):
             result.setFilename(destination)
             result.setResult(RequestResult.SUCCESS).setHTTPCode(200)

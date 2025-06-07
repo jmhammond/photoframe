@@ -237,18 +237,21 @@ class slideshow:
         if image.cacheAllow and not image.cacheUsed:
             self.cacheMgr.setCachedImage(filename, image.getCacheId())
 
-        # Frame it
-        if imageSizing == 'blur':
-            filename = helper.makeFullframe(filename, self.settings.getUser('width'), self.settings.getUser('height'))
-        elif imageSizing == 'zoom':
-            filename = helper.makeFullframe(filename, self.settings.getUser(
-                'width'), self.settings.getUser('height'), zoomOnly=True)
-        elif imageSizing == 'auto':
-            filename = helper.makeFullframe(filename, self.settings.getUser(
-                'width'), self.settings.getUser('height'), autoChoose=True)
+        # assume we've already formatted the image; just display it.
+        return filename
 
-        # Color match it
-        return self._colormatch(filename)
+        # # Frame it
+        # if imageSizing == 'blur':
+        #     filename = helper.makeFullframe(filename, self.settings.getUser('width'), self.settings.getUser('height'))
+        # elif imageSizing == 'zoom':
+        #     filename = helper.makeFullframe(filename, self.settings.getUser(
+        #         'width'), self.settings.getUser('height'), zoomOnly=True)
+        # elif imageSizing == 'auto':
+        #     filename = helper.makeFullframe(filename, self.settings.getUser(
+        #         'width'), self.settings.getUser('height'), autoChoose=True)
+
+        # # Color match it
+        # return self._colormatch(filename)
 
     def delayNextImage(self, time_process):
         # Delay before we show the image (but take processing into account)

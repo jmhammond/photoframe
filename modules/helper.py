@@ -201,160 +201,163 @@ class helper:
         if imageSize is None:
             logging.warning('Cannot frame %s since we cannot determine image dimensions', filename)
             return filename
+        
+        # Don't do any processing of the image. I'm offloading that to my server and images will come properly formatted for my various frames.
+        return filename
 
-        width = imageSize["width"]
-        height = imageSize["height"]
+        # width = imageSize["width"]
+        # height = imageSize["height"]
 
-        p, f = os.path.split(filename)
-        filenameProcessed = os.path.join(p, "framed_" + f)
+        # p, f = os.path.split(filename)
+        # filenameProcessed = os.path.join(p, "framed_" + f)
 
-        width_border = 15
-        width_spacing = 3
-        border = None
-        spacing = None
+        # width_border = 15
+        # width_spacing = 3
+        # border = None
+        # spacing = None
 
- 		# Calculate actual size of image based on display
-        oar = (float)(width) / (float)(height)
-        dar = (float)(displayWidth) / (float)(displayHeight)
+ 		# # Calculate actual size of image based on display
+        # oar = (float)(width) / (float)(height)
+        # dar = (float)(displayWidth) / (float)(displayHeight)
 
-        if not zoomOnly:
-            if oar >= dar:
-                adjWidth = displayWidth
-                adjHeight = int(float(displayWidth) / oar)
-            else:
-                adjWidth = int(float(displayHeight) * oar)
-                adjHeight = displayHeight
+        # if not zoomOnly:
+        #     if oar >= dar:
+        #         adjWidth = displayWidth
+        #         adjHeight = int(float(displayWidth) / oar)
+        #     else:
+        #         adjWidth = int(float(displayHeight) * oar)
+        #         adjHeight = displayHeight
 
-            logging.debug('Size of image is %dx%d, screen is %dx%d. New size is %dx%d',
-                          width, height, displayWidth, displayHeight, adjWidth, adjHeight)
+        #     logging.debug('Size of image is %dx%d, screen is %dx%d. New size is %dx%d',
+        #                   width, height, displayWidth, displayHeight, adjWidth, adjHeight)
 
-            if width < 100 or height < 100:
-                logging.error('Image size is REALLY small, please check "%s" ... something isn\'t right', filename)
-                # a=1/0
+        #     if width < 100 or height < 100:
+        #         logging.error('Image size is REALLY small, please check "%s" ... something isn\'t right', filename)
+        #         # a=1/0
 
-            if adjHeight < displayHeight:
-                border = '0x%d' % width_border
-                spacing = '0x%d' % width_spacing
-                padding = ((displayHeight - adjHeight) / 2 - width_border)
-                resizeString = '%sx%s^'
-                logging.debug('Landscape image, reframing (padding required %dpx)' % padding)
-            elif adjWidth < displayWidth:
-                border = '%dx0' % width_border
-                spacing = '%dx0' % width_spacing
-                padding = ((displayWidth - adjWidth) / 2 - width_border)
-                resizeString = '^%sx%s'
-                logging.debug('Portrait image, reframing (padding required %dpx)' % padding)
-            else:
-                resizeString = '%sx%s'
-                logging.debug('Image is fullscreen, no reframing needed')
-                return filename
+        #     if adjHeight < displayHeight:
+        #         border = '0x%d' % width_border
+        #         spacing = '0x%d' % width_spacing
+        #         padding = ((displayHeight - adjHeight) / 2 - width_border)
+        #         resizeString = '%sx%s^'
+        #         logging.debug('Landscape image, reframing (padding required %dpx)' % padding)
+        #     elif adjWidth < displayWidth:
+        #         border = '%dx0' % width_border
+        #         spacing = '%dx0' % width_spacing
+        #         padding = ((displayWidth - adjWidth) / 2 - width_border)
+        #         resizeString = '^%sx%s'
+        #         logging.debug('Portrait image, reframing (padding required %dpx)' % padding)
+        #     else:
+        #         resizeString = '%sx%s'
+        #         logging.debug('Image is fullscreen, no reframing needed')
+        #         return filename
 
-            if padding < 20 and not autoChoose:
-                logging.debug('That\'s less than 20px so skip reframing (%dx%d => %dx%d)',
-                              width, height, adjWidth, adjHeight)
-                #return filename
-                zoomOnly = True
+        #     if padding < 20 and not autoChoose:
+        #         logging.debug('That\'s less than 20px so skip reframing (%dx%d => %dx%d)',
+        #                       width, height, adjWidth, adjHeight)
+        #         #return filename
+        #         zoomOnly = True
 
-            if padding < 60 and autoChoose:
-                zoomOnly = True
+        #     if padding < 60 and autoChoose:
+        #         zoomOnly = True
 
-        if zoomOnly:
-            if oar <= dar:
-                adjWidth = displayWidth
-                adjHeight = int(float(displayWidth) / oar)
-                logging.debug('Size of image is %dx%d, screen is %dx%d. New size is %dx%d  --> cropped to %dx%d',
-                              width,
-                              height,
-                              displayWidth,
-                              displayHeight,
-                              adjWidth,
-                              adjHeight,
-                              displayWidth,
-                              displayHeight)
-            else:
-                adjWidth = int(float(displayHeight) * oar)
-                adjHeight = displayHeight
-                logging.debug('Size of image is %dx%d, screen is %dx%d. New size is %dx%d --> cropped to %dx%d',
-                              width,
-                              height,
-                              displayWidth,
-                              displayHeight,
-                              adjWidth,
-                              adjHeight,
-                              displayWidth,
-                              displayHeight)
+        # if zoomOnly:
+        #     if oar <= dar:
+        #         adjWidth = displayWidth
+        #         adjHeight = int(float(displayWidth) / oar)
+        #         logging.debug('Size of image is %dx%d, screen is %dx%d. New size is %dx%d  --> cropped to %dx%d',
+        #                       width,
+        #                       height,
+        #                       displayWidth,
+        #                       displayHeight,
+        #                       adjWidth,
+        #                       adjHeight,
+        #                       displayWidth,
+        #                       displayHeight)
+        #     else:
+        #         adjWidth = int(float(displayHeight) * oar)
+        #         adjHeight = displayHeight
+        #         logging.debug('Size of image is %dx%d, screen is %dx%d. New size is %dx%d --> cropped to %dx%d',
+        #                       width,
+        #                       height,
+        #                       displayWidth,
+        #                       displayHeight,
+        #                       adjWidth,
+        #                       adjHeight,
+        #                       displayWidth,
+        #                       displayHeight)
 
-        cmd = None
-        try:
-            # Time to process
-            if zoomOnly:
-                cmd = [
-                    'convert',
-                    filename + '[0]',
-                    '-auto-orient',
-                    '-resize',
-                    '%sx%s' % (adjWidth, adjHeight),
-                    '-gravity',
-                    'center',
-                    '-crop',
-                    '%sx%s+0+0' % (displayWidth, displayHeight),
-                    '+repage',
-                    filenameProcessed
-                ]
-            else:
-                cmd = [
-                    'convert',
-                    filename + '[0]',
-                    '-auto-orient',
-                    '-resize',
-                    resizeString % (displayWidth, displayHeight),
-                    '-gravity',
-                    'center',
-                    '-crop',
-                    '%sx%s+0+0' % (displayWidth, displayHeight),
-                    '+repage',
-                    '-blur',
-                    '0x12',
-                    '-brightness-contrast',
-                    '-20x0',
-                    '(',
-                    filename + '[0]',
-                    '-bordercolor',
-                    'black',
-                    '-border',
-                    border,
-                    '-bordercolor',
-                    'black',
-                    '-border',
-                    spacing,
-                    '-resize',
-                    '%sx%s' % (displayWidth, displayHeight),
-                    '-background',
-                    'transparent',
-                    '-gravity',
-                    'center',
-                    '-extent',
-                    '%sx%s' % (displayWidth, displayHeight),
-                    ')',
-                    '-composite',
-                    filenameProcessed
-                ]
-        except Exception:
-            logging.exception('Error building command line')
-            logging.debug('Filename: ' + repr(filename))
-            logging.debug('filenameProcessed: ' + repr(filenameProcessed))
-            logging.debug('border: ' + repr(border))
-            logging.debug('spacing: ' + repr(spacing))
-            return filename
+        # cmd = None
+        # try:
+        #     # Time to process
+        #     if zoomOnly:
+        #         cmd = [
+        #             'convert',
+        #             filename + '[0]',
+        #             '-auto-orient',
+        #             '-resize',
+        #             '%sx%s' % (adjWidth, adjHeight),
+        #             '-gravity',
+        #             'center',
+        #             '-crop',
+        #             '%sx%s+0+0' % (displayWidth, displayHeight),
+        #             '+repage',
+        #             filenameProcessed
+        #         ]
+        #     else:
+        #         cmd = [
+        #             'convert',
+        #             filename + '[0]',
+        #             '-auto-orient',
+        #             '-resize',
+        #             resizeString % (displayWidth, displayHeight),
+        #             '-gravity',
+        #             'center',
+        #             '-crop',
+        #             '%sx%s+0+0' % (displayWidth, displayHeight),
+        #             '+repage',
+        #             '-blur',
+        #             '0x12',
+        #             '-brightness-contrast',
+        #             '-20x0',
+        #             '(',
+        #             filename + '[0]',
+        #             '-bordercolor',
+        #             'black',
+        #             '-border',
+        #             border,
+        #             '-bordercolor',
+        #             'black',
+        #             '-border',
+        #             spacing,
+        #             '-resize',
+        #             '%sx%s' % (displayWidth, displayHeight),
+        #             '-background',
+        #             'transparent',
+        #             '-gravity',
+        #             'center',
+        #             '-extent',
+        #             '%sx%s' % (displayWidth, displayHeight),
+        #             ')',
+        #             '-composite',
+        #             filenameProcessed
+        #         ]
+        # except Exception:
+        #     logging.exception('Error building command line')
+        #     logging.debug('Filename: ' + repr(filename))
+        #     logging.debug('filenameProcessed: ' + repr(filenameProcessed))
+        #     logging.debug('border: ' + repr(border))
+        #     logging.debug('spacing: ' + repr(spacing))
+        #     return filename
 
-        try:
-            debug.subprocess_check_output(cmd, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            logging.exception('Unable to reframe the image')
-            logging.error('Output: %s' % repr(e.output))
-            return filename
-        os.unlink(filename)
-        return filenameProcessed
+        # try:
+        #     debug.subprocess_check_output(cmd, stderr=subprocess.STDOUT)
+        # except subprocess.CalledProcessError as e:
+        #     logging.exception('Unable to reframe the image')
+        #     logging.error('Output: %s' % repr(e.output))
+        #     return filename
+        # os.unlink(filename)
+        # return filenameProcessed
 
     @staticmethod
     def timezoneList():

@@ -334,7 +334,7 @@ class USB_Photos(BaseService):
         max_images = 200
         
         # Use random.sample for better efficiency
-        selected_files = random.sample(image_files, min(max_images, len(image_files)))
+        selected_files = random.sample(files, min(max_images, len(files)))
         
         for filename in selected_files:
             fullFilename = os.path.join(path, filename)

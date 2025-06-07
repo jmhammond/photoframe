@@ -154,7 +154,7 @@ class slideshow:
 
     def startupScreen(self):
         slideshow.SHOWN_IP = True
-        # Once we have IP, show for 10s
+        # Once we have IP, show for 5s
         cd = self.countdown
         while (cd > 0):
             time_process = time.time()
@@ -283,6 +283,7 @@ class slideshow:
             self.startupScreen()
 
         logging.info('Starting presentation')
+        self.display.message('Fetching & shuffling images from USB \n (it\'s not quick)\n -- John')
         i = 0
         result = None
         lastCfg = self.services.getConfigChange()

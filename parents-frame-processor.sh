@@ -8,23 +8,55 @@ log_message() {
 # Take the specific file path as input
 INPUT_FILE="$1"
 
+# Function to send email notification
+send_error_email() {
+    local error_message="$1"
+    local subject="Parents Frame Processor Error"
+    local body="Error occurred while processing image: $INPUT_FILE
+
+Error Details:
+$error_message
+
+Check the log at /volume1/scripts/photo-logging.log for more details.
+
+Timestamp: $(date '+%Y-%m-%d %H:%M:%S')
+Host: $(hostname)
+Script: $0"
+
+    # Check if ssmtp is available
+    if command -v ssmtp &> /dev/null; then
+        {
+            echo "To: jmhammond@gmail.com"
+            echo "Subject: $subject"
+            echo ""
+            echo "$body"
+        } | ssmtp jmhammond@gmail.com
+    else
+        log_message "Warning: ssmtp not found, cannot send email notification"
+    fi
+}
+
+# Function to handle errors and send email
+handle_error() {
+    local error_msg="$1"
+    log_message "$error_msg"
+    send_error_email "$error_msg"
+    exit 1
+}
+
 # Check if a file was provided
 if [[ -z "$INPUT_FILE" ]]; then
-    log_message "Error: No file path provided"
-    log_message "Usage: $0 /path/to/image/file"
-    exit 1
+    handle_error "Error: No file path provided. Usage: $0 /path/to/image/file"
 fi
 
 # Check if the file exists
 if [[ ! -f "$INPUT_FILE" ]]; then
-    log_message "Error: File '$INPUT_FILE' does not exist"
-    exit 1
+    handle_error "Error: File '$INPUT_FILE' does not exist"
 fi
 
 # Check if ImageMagick is installed
 if ! command -v magick &> /dev/null; then
-    log_message "Error: ImageMagick is not installed or 'magick' command not found"
-    exit 1
+    handle_error "Error: ImageMagick is not installed or 'magick' command not found"
 fi
 
 # Get the directory containing the file
@@ -39,6 +71,7 @@ case "${filename,,}" in
         # Silent processing for image files
         ;;
     *)
+        # For unsupported files, don't send email - just log and exit
         log_message "Error: Not an image file: $INPUT_FILE"
         exit 0
         ;;
@@ -47,8 +80,7 @@ esac
 # Get image dimensions
 dimensions=$(magick identify -format "%w %h" "$INPUT_FILE" 2>/dev/null)
 if [[ $? -ne 0 ]]; then
-    log_message "Error: Could not read dimensions for $INPUT_FILE"
-    exit 1
+    handle_error "Error: Could not read dimensions for $INPUT_FILE"
 fi
 
 width=$(echo $dimensions | cut -d' ' -f1)
@@ -80,8 +112,7 @@ if [[ ($width -eq 1920 && $height -eq 1080) ||
       ($width -ge 1920 && $height -ge 1080 && $width -le 2400 && $height -le 1920) ]]; then
     cp "$INPUT_FILE" "$output"
     if [[ $? -ne 0 ]]; then
-        log_message "Error: Failed to copy: $INPUT_FILE"
-        exit 1
+        handle_error "Error: Failed to copy: $INPUT_FILE"
     fi
 elif [[ $width_border_abs -lt 35 && $height_border_abs -lt 35 ]]; then
     # Image is very close to target size - just scale it to exact dimensions without borders
@@ -91,8 +122,7 @@ elif [[ $width_border_abs -lt 35 && $height_border_abs -lt 35 ]]; then
         "$output"
     
     if [[ $? -ne 0 ]]; then
-        log_message "Error: Failed to scale: $INPUT_FILE"
-        exit 1
+        handle_error "Error: Failed to scale: $INPUT_FILE"
     fi
 else
     # Standard processing for images that need significant resizing
@@ -103,62 +133,61 @@ else
     extent_size="1920x1080"
     border1="15x0"
     border2="3x0"
-fi
-
-# Apply the ImageMagick command with dynamic dimensions
-if [[ -z "$crop_size" ]]; then
-    # No cropping - just resize and composite
-    magick "$INPUT_FILE" \
-        -auto-orient \
-        -resize "$resize_bg" \
-        -gravity center \
-        +repage \
-        -blur '0x12' \
-        -brightness-contrast '-20x0' \
-        \( "$INPUT_FILE" \
-            -bordercolor black \
-            -border "$border1" \
-            -bordercolor black \
-            -border "$border2" \
-            -resize "$resize_fg" \
-            -background transparent \
+    
+    # Apply the ImageMagick command with dynamic dimensions
+    if [[ -z "$crop_size" ]]; then
+        # No cropping - just resize and composite
+        magick "$INPUT_FILE" \
+            -auto-orient \
+            -resize "$resize_bg" \
             -gravity center \
-            -extent "$extent_size" \
-        \) \
-        -composite \
-        "$output"
-else
-    # Standard processing with cropping
-    magick "$INPUT_FILE" \
-        -auto-orient \
-        -resize "$resize_bg" \
-        -gravity center \
-        -crop "$crop_size" \
-        +repage \
-        -blur '0x12' \
-        -brightness-contrast '-20x0' \
-        \( "$INPUT_FILE" \
-            -bordercolor black \
-            -border "$border1" \
-            -bordercolor black \
-            -border "$border2" \
-            -resize "$resize_fg" \
-            -background transparent \
+            +repage \
+            -blur '0x12' \
+            -brightness-contrast '-20x0' \
+            \( "$INPUT_FILE" \
+                -bordercolor black \
+                -border "$border1" \
+                -bordercolor black \
+                -border "$border2" \
+                -resize "$resize_fg" \
+                -background transparent \
+                -gravity center \
+                -extent "$extent_size" \
+            \) \
+            -composite \
+            "$output"
+    else
+        # Standard processing with cropping
+        magick "$INPUT_FILE" \
+            -auto-orient \
+            -resize "$resize_bg" \
             -gravity center \
-            -extent "$extent_size" \
-        \) \
-        -composite \
-        "$output"
-fi
+            -crop "$crop_size" \
+            +repage \
+            -blur '0x12' \
+            -brightness-contrast '-20x0' \
+            \( "$INPUT_FILE" \
+                -bordercolor black \
+                -border "$border1" \
+                -bordercolor black \
+                -border "$border2" \
+                -resize "$resize_fg" \
+                -background transparent \
+                -gravity center \
+                -extent "$extent_size" \
+            \) \
+            -composite \
+            "$output"
+    fi
 
-if [[ $? -ne 0 ]]; then
-    log_message "Error: Failed to frame: $INPUT_FILE"
-    exit 1
+    if [[ $? -ne 0 ]]; then
+        handle_error "Error: Failed to frame: $INPUT_FILE"
+    fi
 fi
 
 # Move original file to old directory (only after successful processing)
 if ! mv "$INPUT_FILE" "$OLD_DIR/"; then
-    log_message "Error: Failed to move original file to old directory"
+    handle_error "Error: Failed to move original file to old directory"
 fi
 
 log_message "✓ Processed: $(basename "$INPUT_FILE")"

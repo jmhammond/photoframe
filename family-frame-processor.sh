@@ -7,16 +7,50 @@ log_message() {
 
 IMAGE_FILE="$1"
 
+# Function to send email notification
+send_error_email() {
+    local error_message="$1"
+    local subject="Family Frame Processor Error"
+    local body="Error occurred while processing image: $IMAGE_FILE
+
+Error Details:
+$error_message
+
+Check the log at /volume1/scripts/photo-logging.log for more details.
+
+Timestamp: $(date '+%Y-%m-%d %H:%M:%S')
+Host: $(hostname)
+Script: $0"
+
+    # Check if ssmtp is available
+    if command -v ssmtp &> /dev/null; then
+        {
+            echo "To: jmhammond@gmail.com"
+            echo "Subject: $subject"
+            echo ""
+            echo "$body"
+        } | ssmtp jmhammond@gmail.com
+    else
+        log_message "Warning: ssmtp not found, cannot send email notification"
+    fi
+}
+
+# Function to handle errors and send email
+handle_error() {
+    local error_msg="$1"
+    log_message "$error_msg"
+    send_error_email "$error_msg"
+    exit 1
+}
+
 # Check if file exists
 if [[ ! -f "$IMAGE_FILE" ]]; then
-    log_message "Error: File not found: $IMAGE_FILE"
-    exit 1
+    handle_error "Error: File not found: $IMAGE_FILE"
 fi
 
 # Check if ImageMagick is installed
 if ! command -v magick &> /dev/null; then
-    log_message "Error: ImageMagick is not installed or 'magick' command not found"
-    exit 1
+    handle_error "Error: ImageMagick is not installed or 'magick' command not found"
 fi
 
 # Get the directory containing the image file
@@ -34,16 +68,15 @@ case "${FILENAME,,}" in
     *.jpg|*.jpeg|*.png|*.heic)
         ;;
     *)
+        # if there's an unsupported file, I don't care about an email.
         log_message "Error: Unsupported file format: $FILENAME"
-        exit 1
-        ;;
+        exit 1 
 esac
 
 # Get image dimensions
 dimensions=$(magick identify -format "%w %h" "$IMAGE_FILE" 2>/dev/null)
 if [[ $? -ne 0 ]]; then
-    log_message "Error: Could not read dimensions for $IMAGE_FILE"
-    exit 1
+    handle_error "Error: Could not read dimensions for $IMAGE_FILE"
 fi
 
 # Fixed dimension parsing - use echo instead of log_message
@@ -54,8 +87,8 @@ height=$(echo $dimensions | cut -d' ' -f2)
 name_no_ext="${FILENAME%.*}"
 extension="${FILENAME##*.}"
 
-# Create output filename in processed directory
-output="$PROCESSED_DIR/$FILENAME"
+# Create output filename in processed directory with framed_ prefix
+output="$PROCESSED_DIR/framed_$FILENAME"
 
 # Check if image is already very close to target dimensions or should be skipped
 width_border_needed=$(( (1280 - width) / 2 ))
@@ -69,16 +102,8 @@ if [[ ($width -eq 1280 && $height -eq 1280) ||
       ($height -eq 1024 && $width -gt 1280 && $width -le 1600) ||
       ($width -ge 1280 && $height -ge 1024 && $width -le 1600 && $height -le 1280) ]]; then
     cp "$IMAGE_FILE" "$output"
-    if [[ $? -eq 0 ]]; then
-        # Move original to old directory
-        mv "$IMAGE_FILE" "$OLD_DIR/"
-        if [[ $? -ne 0 ]]; then
-            log_message "Error: Failed to move original file to old directory"
-            exit 1
-        fi
-    else
-        log_message "Error: Failed to copy $IMAGE_FILE"
-        exit 1
+    if [[ $? -ne 0 ]]; then
+        handle_error "Error: Failed to copy $IMAGE_FILE"
     fi
 elif [[ $width_border_abs -lt 35 && $height_border_abs -lt 35 ]]; then
     # Image is very close to target size - just scale it to exact dimensions without borders
@@ -87,16 +112,8 @@ elif [[ $width_border_abs -lt 35 && $height_border_abs -lt 35 ]]; then
         -resize "1280x1024!" \
         "$output"
     
-    if [[ $? -eq 0 ]]; then
-        # Move original to old directory
-        mv "$IMAGE_FILE" "$OLD_DIR/"
-        if [[ $? -ne 0 ]]; then
-            log_message "Error: Failed to move original file to old directory"
-            exit 1
-        fi
-    else
-        log_message "Error: Failed to scale $IMAGE_FILE"
-        exit 1
+    if [[ $? -ne 0 ]]; then
+        handle_error "Error: Failed to scale $IMAGE_FILE"
     fi
 else
     # Standard processing for images that need significant resizing
@@ -164,17 +181,14 @@ else
             "$output"
     fi
     
-    if [[ $? -eq 0 ]]; then
-        # Move original to old directory
-        mv "$IMAGE_FILE" "$OLD_DIR/"
-        if [[ $? -ne 0 ]]; then
-            log_message "Error: Failed to move original file to old directory"
-            exit 1
-        fi
-    else
-        log_message "Error: Failed to frame $IMAGE_FILE"
-        exit 1
+    if [[ $? -ne 0 ]]; then
+        handle_error "Error: Failed to frame $IMAGE_FILE"
     fi
 fi
 
-log_message "Processing complete: $FILENAME"
+# Move original file to old directory (only after successful processing)
+if ! mv "$IMAGE_FILE" "$OLD_DIR/"; then
+    handle_error "Error: Failed to move original file to old directory"
+fi
+
+log_message "✓ Processed: $(basename "$IMAGE_FILE")"

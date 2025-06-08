@@ -11,7 +11,7 @@ INPUT_FILE="$1"
 # Function to send email notification
 send_error_email() {
     local error_message="$1"
-    local subject="Parents Frame Processor Error"
+    local subject="(photoframe) Parents Frame Processor Error"
     local body="Error occurred while processing image: $INPUT_FILE
 
 Error Details:
@@ -77,6 +77,15 @@ case "${filename,,}" in
         ;;
 esac
 
+OLD_DIR="$IMAGE_DIR/old_doNotTouch"
+PROCESSED_DIR="$IMAGE_DIR/processed_doNotTouch"
+
+mkdir -p "$OLD_DIR"
+mkdir -p "$PROCESSED_DIR"
+
+# Set resource limits for NAS
+MAGICK_LIMITS="-limit memory 128MiB -limit map 256MiB -limit disk 512MiB -limit thread 2"
+
 # Get image dimensions
 dimensions=$(magick identify -format "%w %h" "$INPUT_FILE" 2>/dev/null)
 if [[ $? -ne 0 ]]; then
@@ -90,14 +99,42 @@ height=$(echo $dimensions | cut -d' ' -f2)
 name_no_ext="${filename%.*}"
 extension="${filename##*.}"
 
-OLD_DIR="$IMAGE_DIR/old_doNotTouch"
-PROCESSED_DIR="$IMAGE_DIR/processed_doNotTouch"
-
-mkdir -p "$OLD_DIR"
-mkdir -p "$PROCESSED_DIR"
-
 # Create output filename in the processed directory
 output="$PROCESSED_DIR/framed_${filename}"
+
+# Scale image down to fit within 1920x1080 if it's larger
+temp_scaled=""
+IMAGE_TO_PROCESS="$INPUT_FILE"
+
+if [[ $width -gt 1920 || $height -gt 1080 ]]; then
+    temp_scaled="$OLD_DIR/.temp_scaled_$filename"
+    
+    if [[ $width -lt $height ]]; then
+        # Portrait: limit height to 1080, maintain aspect ratio
+        magick "$INPUT_FILE" \
+            $MAGICK_LIMITS \
+            -auto-orient \
+            -resize "x1080>" \
+            "$temp_scaled"
+    else
+        # Landscape: limit width to 1920, maintain aspect ratio
+        magick "$INPUT_FILE" \
+            $MAGICK_LIMITS \
+            -auto-orient \
+            -resize "1920x>" \
+            "$temp_scaled"
+    fi
+    
+    if [[ $? -ne 0 ]]; then
+        handle_error "Error: Failed to scale down $INPUT_FILE"
+    fi
+    
+    # Update IMAGE_TO_PROCESS and dimensions for scaled version
+    IMAGE_TO_PROCESS="$temp_scaled"
+    dimensions=$(magick identify -format "%w %h" "$IMAGE_TO_PROCESS" 2>/dev/null)
+    width=$(echo $dimensions | cut -d' ' -f1)
+    height=$(echo $dimensions | cut -d' ' -f2)
+fi
 
 # Check if image is already very close to target dimensions or should be skipped
 width_border_needed=$(( (1920 - width) / 2 ))
@@ -110,13 +147,14 @@ if [[ ($width -eq 1920 && $height -eq 1080) ||
       ($width -eq 1920 && $height -gt 1080 && $height -le 1920) || 
       ($height -eq 1080 && $width -gt 1920 && $width -le 2400) ||
       ($width -ge 1920 && $height -ge 1080 && $width -le 2400 && $height -le 1920) ]]; then
-    cp "$INPUT_FILE" "$output"
+    cp "$IMAGE_TO_PROCESS" "$output"
     if [[ $? -ne 0 ]]; then
         handle_error "Error: Failed to copy: $INPUT_FILE"
     fi
 elif [[ $width_border_abs -lt 35 && $height_border_abs -lt 35 ]]; then
     # Image is very close to target size - just scale it to exact dimensions without borders
-    magick "$INPUT_FILE" \
+    magick "$IMAGE_TO_PROCESS" \
+        $MAGICK_LIMITS \
         -auto-orient \
         -resize "1920x1080!" \
         "$output"
@@ -126,7 +164,7 @@ elif [[ $width_border_abs -lt 35 && $height_border_abs -lt 35 ]]; then
     fi
 else
     # Standard processing for images that need significant resizing
-    # Always use horizontal borders (left/right) since max width is 1280
+    # Always use horizontal borders (left/right) for parents frame
     resize_bg="^1920x1080"
     crop_size="1920x1080+0+0"
     resize_fg="1920x1080"
@@ -137,14 +175,16 @@ else
     # Apply the ImageMagick command with dynamic dimensions
     if [[ -z "$crop_size" ]]; then
         # No cropping - just resize and composite
-        magick "$INPUT_FILE" \
+        magick "$IMAGE_TO_PROCESS" \
+            $MAGICK_LIMITS \
             -auto-orient \
             -resize "$resize_bg" \
             -gravity center \
             +repage \
             -blur '0x12' \
             -brightness-contrast '-20x0' \
-            \( "$INPUT_FILE" \
+            \( "$IMAGE_TO_PROCESS" \
+                -auto-orient \
                 -bordercolor black \
                 -border "$border1" \
                 -bordercolor black \
@@ -158,7 +198,8 @@ else
             "$output"
     else
         # Standard processing with cropping
-        magick "$INPUT_FILE" \
+        magick "$IMAGE_TO_PROCESS" \
+            $MAGICK_LIMITS \
             -auto-orient \
             -resize "$resize_bg" \
             -gravity center \
@@ -166,7 +207,8 @@ else
             +repage \
             -blur '0x12' \
             -brightness-contrast '-20x0' \
-            \( "$INPUT_FILE" \
+            \( "$IMAGE_TO_PROCESS" \
+                -auto-orient \
                 -bordercolor black \
                 -border "$border1" \
                 -bordercolor black \
@@ -186,8 +228,16 @@ else
 fi
 
 # Move original file to old directory (only after successful processing)
-if ! mv "$INPUT_FILE" "$OLD_DIR/"; then
-    handle_error "Error: Failed to move original file to old directory"
+if [[ -n "$temp_scaled" ]]; then
+    # If we created a temp file, move the original and clean up temp
+    if ! mv "$INPUT_FILE" "$OLD_DIR/"; then
+        handle_error "Error: Failed to move original file to old directory"
+    fi
+    rm -f "$temp_scaled"
+else
+    if ! mv "$INPUT_FILE" "$OLD_DIR/"; then
+        handle_error "Error: Failed to move original file to old directory"
+    fi
 fi
 
 log_message "✓ Processed: $(basename "$INPUT_FILE")"

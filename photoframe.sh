@@ -37,5 +37,5 @@ fi
 # Allows options to inject pre/post commands and options,
 # paving the way for grabbing logs via web interface.
 ${PRERUN}
-${PRECMD} ./frame.py ${POSTCMD}
+${PRECMD} ./frame.py --debug ${POSTCMD}
 ${POSTRUN}

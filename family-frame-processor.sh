@@ -6,6 +6,7 @@ log_message() {
 }
 
 IMAGE_FILE="$1"
+LOG_FILE="/volume1/scripts/photo-logging.log"
 
 # Function to send email notification
 send_error_email() {
@@ -16,10 +17,11 @@ send_error_email() {
 Error Details:
 $error_message
 
-Check the log at /volume1/scripts/photo-logging.log for more details.
+Here are the last 20 lines from $LOG_FILE:
+
+$(tail -n 20 "$LOG_FILE")
 
 Timestamp: $(date '+%Y-%m-%d %H:%M:%S')
-Host: $(hostname)
 Script: $0"
 
     # Check if ssmtp is available

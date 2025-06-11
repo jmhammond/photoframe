@@ -87,7 +87,7 @@ class USB_Photos(BaseService):
         BaseService.__init__(self, configDir, id, name, needConfig=False, needOAuth=False)
 
     def preSetup(self):
-        USB_Photos.INDEX += 1
+        USB_Photos.INDEX = 1 # there's only one USB drive in any of my systems. 
         self.usbDir = "/mnt/usb%d" % USB_Photos.INDEX
         self.baseDir = os.path.join(self.usbDir, "photoframe")
 

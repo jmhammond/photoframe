@@ -184,7 +184,6 @@ class BaseService:
 
     def getImagesTotal(self):
         # return the total number of images provided by this service
-        logging.debug('getImagesTotal: Enter')
         BaseService.CONCURRENCY += 1
         if BaseService.CONCURRENCY > 1:
             logging.error('Multiple threads accessing getImagesTotal!')
@@ -201,7 +200,6 @@ class BaseService:
                     self._STATE['_NEXT_SCAN'][keyword] = time.time() + self.REFRESH_DELAY
                 sum = sum + self._STATE["_NUM_IMAGES"][keyword]
         BaseService.CONCURRENCY -= 1
-        logging.debug('getImagesTotal: Exit')
         return sum
 
     def getImagesSeen(self):

@@ -457,7 +457,6 @@ class USB_Photos(BaseService):
                         'on your storage device.')
 
     def getImagesFor(self, keyword):
-        logging.debug("getImagesFor()")
         if not os.path.isdir(self.baseDir):
             return []
         

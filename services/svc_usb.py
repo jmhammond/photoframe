@@ -101,6 +101,7 @@ class USB_Photos(BaseService):
             also, reset the cache every day after 3am;
             accounting for receiving any new files daily.
         """
+        self._ensure_cache_initialized()
         if path not in self._cache_timestamps:
             return False
         
@@ -128,6 +129,7 @@ class USB_Photos(BaseService):
 
     def _cache_directory_scan(self, path, scan_type='both'):
         """Cache directory contents with modification time tracking"""
+        self._ensure_cache_initialized()  
         if not os.path.exists(path):
             return [], []
         

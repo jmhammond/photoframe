@@ -215,6 +215,14 @@ $("select[name=enable-cache]").change(function () {
   });
 });
 
+$("select[name=decay_factor]").change(function () {
+  $.ajax({
+    url: "/setting/" + $(this).attr('name') + "/" + encodeURIComponent($(this).val()),
+    type: "PUT"
+  }).done(function () {
+  });
+});
+
 $("select[name=offline-behavior]").change(function () {
   $.ajax({
     url: "/setting/" + $(this).attr('name') + "/" + encodeURIComponent($(this).val()),

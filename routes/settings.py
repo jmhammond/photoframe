@@ -82,7 +82,7 @@ class RouteSettings(BaseRoute):
             if key in ['shutdown-pin']:
                 self.powermanagement.stopmonitor()
                 self.powermanagement = shutdown(self.settingsMgr.getUser('shutdown-pin'))
-            if key in ['imagesizing', 'randomize_images']:
+            if key in ['imagesizing', 'randomize_images', 'decay_factor']:
                 self.slideshow.createEvent("settingsChange")
             self.settingsMgr.save()
             return self.jsonify({'status': status})

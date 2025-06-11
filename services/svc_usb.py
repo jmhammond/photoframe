@@ -281,6 +281,7 @@ class USB_Photos(BaseService):
 
     # All images directly inside '/photoframe' directory will be displayed without any keywords
     def getBaseDirImages(self):
+        logging.debug("getBaseDirImages()")
         return [x for x in os.listdir(self.baseDir) if (not x.startswith(".") and os.path.isfile(os.path.join(self.baseDir, x)))]
 
     def getAllAlbumNames(self):
@@ -312,6 +313,7 @@ class USB_Photos(BaseService):
                         'on your storage device.')
 
     def getImagesFor(self, keyword):
+        logging.debug("getImagesFor()")
         if not os.path.isdir(self.baseDir):
             return []
         images = []

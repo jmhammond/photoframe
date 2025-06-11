@@ -197,8 +197,12 @@ class USB_Photos(BaseService):
         if len(files) <= max_images:
             return files
         
-        # Create exponential decay weights (files already sorted newest first)
-        decay_factor = 0.005  # Adjust this to control bias toward newer files
+        # Get decay factor from global settings
+        from modules.settings import settings
+        settings_mgr = settings()
+        settings_mgr.load()
+        decay_factor = float(settings_mgr.getUser('decay_factor') or 0.003)
+    
         weights = [math.exp(-i * decay_factor) for i in range(len(files))]
         
         # Use random.choices then remove duplicates to maintain weighting

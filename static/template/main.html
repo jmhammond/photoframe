@@ -127,6 +127,19 @@
 			<option value="1">yes</option>
 			{{/select}}
 		</select>
+		        Photo recency bias
+        <select name="decay_factor">
+            {{#select settings.decay_factor}}
+            <option value="0.0">None (completely random)</option>
+            <option value="0.001">Very light bias</option>
+            <option value="0.003">Light bias (default)</option>
+            <option value="0.005">New about every 3-6 images</option>
+            <option value="0.01">Moderate bias</option>
+            <option value="0.1">Strong bias</option>
+            {{/select}}
+        </select>
+        <button onclick="alert('Controls how much newer photos are favored over older ones. Higher values mean recent photos appear much more frequently than older photos.');">Explain</button>
+        <br>
 		<br>
 		When internet and/or network is lost
 		<select name="offline-behavior">

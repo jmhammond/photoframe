@@ -96,6 +96,15 @@ class USB_Photos(BaseService):
         except OSError:
             return 0
 
+    def _ensure_cache_initialized(self):
+        """Ensure cache dictionaries are initialized"""
+        if not hasattr(self, '_dir_cache'):
+            self._dir_cache = {}
+            logging.debug("Initialized _dir_cache")
+        if not hasattr(self, '_cache_timestamps'):
+            self._cache_timestamps = {}
+            logging.debug("Initialized _cache_timestamps")
+
     def _is_cache_valid(self, path):
         """Check if cached data is still valid
             also, reset the cache every day after 3am;

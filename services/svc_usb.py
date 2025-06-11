@@ -198,7 +198,7 @@ class USB_Photos(BaseService):
             return files
         
         # Create exponential decay weights (files already sorted newest first)
-        decay_factor = 0.1  # Adjust this to control bias toward newer files
+        decay_factor = 0.005  # Adjust this to control bias toward newer files
         weights = [math.exp(-i * decay_factor) for i in range(len(files))]
         
         # Use random.choices then remove duplicates to maintain weighting

@@ -114,22 +114,21 @@ class USB_Photos(BaseService):
         if path not in self._cache_timestamps:
             return False
         
-        # Check if it's past 3am today and cache is from yesterday
         import datetime
-        now = datetime.datetime.now()
-        today_3am = now.replace(hour=3, minute=0, second=0, microsecond=0)
-        
-        # If current time is before 3am, use yesterday's 3am as the cutoff
-        if now.hour < 3:
-            cutoff_time = today_3am - datetime.timedelta(days=1)
-        else:
-            cutoff_time = today_3am
         
         cache_time = datetime.datetime.fromtimestamp(self._cache_timestamps[path])
+        now = datetime.datetime.now()
         
-        # Invalidate if cache is older than the most recent 3am
-        if cache_time < cutoff_time:
-            logging.debug(f"Cache invalidated for {path} - older than 3am cutoff")
+        # Calculate 3am on the day AFTER the cache was created
+        cache_date = cache_time.date()
+        next_day_3am = datetime.datetime.combine(
+            cache_date + datetime.timedelta(days=1), 
+            datetime.time(3, 0, 0)
+        )
+        
+        # Cache is invalid if we're past 3am the day after it was created
+        if now >= next_day_3am:
+            logging.debug(f"Cache invalidated for {path} - past 3am cutoff ({next_day_3am})")
             return False
         
         # Also check directory modification time as before

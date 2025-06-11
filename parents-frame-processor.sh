@@ -86,7 +86,7 @@ mkdir -p "$OLD_DIR"
 mkdir -p "$PROCESSED_DIR"
 
 # Set resource limits for NAS
-MAGICK_LIMITS="-limit memory 128MiB -limit map 256MiB -limit disk 512MiB -limit thread 2"
+MAGICK_LIMITS="-limit memory 128MiB -limit map 256MiB -limit disk 512MiB -limit thread 1"
 
 # Get image dimensions
 dimensions=$(magick identify -format "%w %h" "$INPUT_FILE" 2>/dev/null)

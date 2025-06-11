@@ -92,7 +92,7 @@ extension="${FILENAME##*.}"
 output="$PROCESSED_DIR/framed_$FILENAME"
 
 # Set resource limits for NAS
-MAGICK_LIMITS="-limit memory 128MiB -limit map 256MiB -limit disk 512MiB -limit thread 2"
+MAGICK_LIMITS="-limit memory 128MiB -limit map 256MiB -limit disk 512MiB -limit thread 1"
 
 # Scale image down to fit within 1280x1024 if it's larger
 temp_scaled=""

@@ -20,6 +20,7 @@ import os
 import logging
 import json
 import random
+import math
 
 from modules.helper import helper
 from modules.network import RequestResult
@@ -85,6 +86,122 @@ class USB_Photos(BaseService):
 
     def __init__(self, configDir, id, name):
         BaseService.__init__(self, configDir, id, name, needConfig=False, needOAuth=False)
+        self._dir_cache = {}
+        self._cache_timestamps = {}
+
+    def _get_dir_mtime(self, path):
+        """Get directory modification time for cache invalidation"""
+        try:
+            return os.path.getmtime(path)
+        except OSError:
+            return 0
+
+    def _is_cache_valid(self, path):
+        """Check if cached data is still valid
+            also, reset the cache every day after 3am;
+            accounting for receiving any new files daily.
+        """
+        if path not in self._cache_timestamps:
+            return False
+        
+        # Check if it's past 3am today and cache is from yesterday
+        import datetime
+        now = datetime.datetime.now()
+        today_3am = now.replace(hour=3, minute=0, second=0, microsecond=0)
+        
+        # If current time is before 3am, use yesterday's 3am as the cutoff
+        if now.hour < 3:
+            cutoff_time = today_3am - datetime.timedelta(days=1)
+        else:
+            cutoff_time = today_3am
+        
+        cache_time = datetime.datetime.fromtimestamp(self._cache_timestamps[path])
+        
+        # Invalidate if cache is older than the most recent 3am
+        if cache_time < cutoff_time:
+            logging.debug(f"Cache invalidated for {path} - older than 3am cutoff")
+            return False
+        
+        # Also check directory modification time as before
+        current_mtime = self._get_dir_mtime(path)
+        return self._cache_timestamps[path] == current_mtime
+
+    def _cache_directory_scan(self, path, scan_type='both'):
+        """Cache directory contents with modification time tracking"""
+        if not os.path.exists(path):
+            return [], []
+        
+        current_mtime = self._get_dir_mtime(path)
+        
+        # Check if cache is valid
+        if self._is_cache_valid(path):
+            cache_key = f"{path}_{scan_type}"
+            if cache_key in self._dir_cache:
+                logging.debug(f"Using cached directory scan for {path}")
+                return self._dir_cache[cache_key]
+        
+        files = []
+        dirs = []
+        
+        try:
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    if entry.name.startswith("."):
+                        continue
+                    
+                    if entry.is_file() and scan_type in ['both', 'files']:
+                        files.append((entry.stat().st_mtime, entry.name))
+                    elif entry.is_dir() and scan_type in ['both', 'dirs']:
+                        dirs.append((entry.stat().st_mtime, entry.name))
+        except OSError:
+            return [], []
+        
+        # Sort by modification time (newest first)
+        files.sort(key=lambda x: x[0], reverse=True)
+        dirs.sort(key=lambda x: x[0], reverse=True)
+        
+        # Cache the results
+        self._cache_timestamps[path] = current_mtime
+        self._dir_cache[f"{path}_both"] = (files, dirs)
+        self._dir_cache[f"{path}_files"] = (files, [])
+        self._dir_cache[f"{path}_dirs"] = ([], dirs)
+        
+        logging.debug(f"Cached directory scan for {path}: {len(files)} files, {len(dirs)} dirs")
+        
+        if scan_type == 'files':
+            return files, []
+        elif scan_type == 'dirs':
+            return [], dirs
+        else:
+            return files, dirs
+
+    def invalidate_cache(self):
+        """Manually invalidate cache"""
+        self._dir_cache.clear()
+        self._cache_timestamps.clear()
+        logging.debug("Directory cache invalidated")
+
+    def weighted_random_selection(self, files, max_images):
+        """Weighted selection favoring newer files (assumes files are pre-sorted)"""
+        if len(files) <= max_images:
+            return files
+        
+        # Create exponential decay weights (files already sorted newest first)
+        decay_factor = 0.1  # Adjust this to control bias toward newer files
+        weights = [math.exp(-i * decay_factor) for i in range(len(files))]
+        
+        # Use random.choices then remove duplicates to maintain weighting
+        selected_with_dupes = random.choices(files, weights=weights, k=max_images * 2)
+        
+        # Remove duplicates while preserving weighting bias
+        seen = set()
+        selected = []
+        for item in selected_with_dupes:
+            if item not in seen and len(selected) < max_images:
+                seen.add(item)
+                selected.append(item)
+        
+        return selected
 
     def preSetup(self):
         USB_Photos.INDEX = 1 # there's only one USB drive in any of my systems. 
@@ -262,6 +379,8 @@ class USB_Photos(BaseService):
                 logging.info("USB-device '%s' successfully mounted to '%s'!" % (cmd[-2], cmd[-1]))
                 if os.path.exists(self.baseDir):
                     self.device = candidate
+                    # Invalidate cache when new device is mounted
+                    self.invalidate_cache()
                     self.checkForInvalidKeywords()
                     return True
             except subprocess.CalledProcessError as e:
@@ -276,16 +395,26 @@ class USB_Photos(BaseService):
         cmd = ['sudo', '-n', 'umount', self.usbDir]
         try:
             debug.subprocess_check_output(cmd, stderr=subprocess.STDOUT)
+            # Invalidate cache when device is unmounted
+            self.invalidate_cache()
         except subprocess.CalledProcessError:
             logging.debug("unable to UNMOUNT '%s'" % self.usbDir)
 
     # All images directly inside '/photoframe' directory will be displayed without any keywords
     def getBaseDirImages(self):
         logging.debug("getBaseDirImages()")
-        return [x for x in os.listdir(self.baseDir) if (not x.startswith(".") and os.path.isfile(os.path.join(self.baseDir, x)))]
+        if not os.path.exists(self.baseDir):
+            return []
+        
+        files, _ = self._cache_directory_scan(self.baseDir, 'files')
+        return [filename for _, filename in files]
 
     def getAllAlbumNames(self):
-        return [x for x in os.listdir(self.baseDir) if (not x.startswith(".") and os.path.isdir(os.path.join(self.baseDir, x)))]
+        if not os.path.exists(self.baseDir):
+            return []
+        
+        _, dirs = self._cache_directory_scan(self.baseDir, 'dirs')
+        return [dirname for _, dirname in dirs]
 
     def selectImageFromAlbum(self, destinationDir, supportedMimeTypes, displaySize, randomize):
         if self.device is None:
@@ -316,27 +445,37 @@ class USB_Photos(BaseService):
         logging.debug("getImagesFor()")
         if not os.path.isdir(self.baseDir):
             return []
+        
         images = []
         if keyword == "_PHOTOFRAME_":
-            files = [x for x in self.getBaseDirImages() if not x.startswith(".")]
-            images = self.getAlbumInfo(self.baseDir, files)
+            # Use cached base directory files (already sorted by date)
+            files, _ = self._cache_directory_scan(self.baseDir, 'files')
+            file_names = [filename for _, filename in files]
+            images = self.getAlbumInfo(self.baseDir, file_names, pre_sorted=True)
         else:
-            if os.path.isdir(os.path.join(self.baseDir, keyword)):
-                files = [x for x in os.listdir(os.path.join(self.baseDir, keyword)) if not x.startswith(".")]
-                images = self.getAlbumInfo(os.path.join(self.baseDir, keyword), files)
+            album_path = os.path.join(self.baseDir, keyword)
+            if os.path.isdir(album_path):
+                # Cache album directory contents
+                files, _ = self._cache_directory_scan(album_path, 'files')
+                file_names = [filename for _, filename in files]
+                images = self.getAlbumInfo(album_path, file_names, pre_sorted=True)
             else:
                 logging.warning(
                   "The album '%s' does not exist. Did you unplug "
-                  "the storage device associated with '%s'?!" % (os.path.join(self.baseDir, keyword), self.device)
-                  )
+                  "the storage device associated with '%s'?!" % (album_path, self.device)
+                )
         return images
 
-    def getAlbumInfo(self, path, files):
+    def getAlbumInfo(self, path, files, pre_sorted=False):
         images = []
         max_images = 200
         
-        # Use random.sample for better efficiency
-        selected_files = random.sample(files, min(max_images, len(files)))
+        if pre_sorted:
+            # Files are already sorted by modification time, apply weighted selection
+            selected_files = self.weighted_random_selection(files, max_images)
+        else:
+            # Fallback to random selection for compatibility
+            selected_files = random.sample(files, min(max_images, len(files)))
         
         for filename in selected_files:
             fullFilename = os.path.join(path, filename)
@@ -346,17 +485,10 @@ class USB_Photos(BaseService):
                 logging.warning('File %s does not exist, skipping', fullFilename)
                 continue
                 
-            # Get image dimensions (this is the expensive operation)
-            # dim = helper.getImageSize(fullFilename)
-            # if dim is None:
-            #     logging.warning('File %s has unknown format, skipping', fullFilename)
-            #     continue
-    
             item = BaseService.createImageHolder(self)
             item.setId(self.hashString(fullFilename))
             item.setUrl(fullFilename).setSource(fullFilename)
             item.setMimetype(helper.getMimetype(fullFilename))
-            #item.setDimensions(dim['width'], dim['height'])
             item.setFilename(filename)
             item.allowCache(False)  # Disable caching for USB images
             images.append(item)

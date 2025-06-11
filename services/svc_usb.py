@@ -170,8 +170,9 @@ class USB_Photos(BaseService):
         files.sort(key=lambda x: x[0], reverse=True)
         dirs.sort(key=lambda x: x[0], reverse=True)
         
-        # Cache the results
-        self._cache_timestamps[path] = current_mtime
+        # Cache the results with CURRENT TIME as cache timestamp
+        import time
+        self._cache_timestamps[path] = time.time()  # ← Use current time!
         self._dir_cache[f"{path}_both"] = (files, dirs)
         self._dir_cache[f"{path}_files"] = (files, [])
         self._dir_cache[f"{path}_dirs"] = ([], dirs)

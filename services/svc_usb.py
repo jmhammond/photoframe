@@ -89,13 +89,6 @@ class USB_Photos(BaseService):
         self._dir_cache = {}
         self._cache_timestamps = {}
 
-    def _get_dir_mtime(self, path):
-        """Get directory modification time for cache invalidation"""
-        try:
-            return os.path.getmtime(path)
-        except OSError:
-            return 0
-
     def _ensure_cache_initialized(self):
         """Ensure cache dictionaries are initialized"""
         if not hasattr(self, '_dir_cache'):
@@ -131,17 +124,13 @@ class USB_Photos(BaseService):
             logging.debug(f"Cache invalidated for {path} - past 3am cutoff ({next_day_3am})")
             return False
         
-        # Also check directory modification time as before
-        current_mtime = self._get_dir_mtime(path)
-        return self._cache_timestamps[path] == current_mtime
+        return True 
 
     def _cache_directory_scan(self, path, scan_type='both'):
         """Cache directory contents with modification time tracking"""
         self._ensure_cache_initialized()  
         if not os.path.exists(path):
             return [], []
-        
-        current_mtime = self._get_dir_mtime(path)
         
         # Check if cache is valid
         if self._is_cache_valid(path):

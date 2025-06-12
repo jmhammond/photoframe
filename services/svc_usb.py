@@ -21,6 +21,7 @@ import logging
 import json
 import random
 import math
+import time
 
 from modules.helper import helper
 from modules.network import RequestResult
@@ -98,46 +99,61 @@ class USB_Photos(BaseService):
             self._cache_timestamps = {}
             logging.debug("Initialized _cache_timestamps")
 
-    def _is_cache_valid(self, path):
-        """Check if cached data is still valid
-            also, reset the cache every day after 3am;
-            accounting for receiving any new files daily.
-        """
+    def _get_dir_mtime(self, path):
+        try:
+            return os.path.getmtime(path)
+        except OSError:
+            return 0
+
+    def _is_cache_valid(self, path, current_mtime):
         self._ensure_cache_initialized()
         if path not in self._cache_timestamps:
+            logging.debug(f"Cache miss - no timestamp for {path}")
             return False
+        
+        cache_info = self._cache_timestamps[path]
+        cache_created = cache_info['created']
+        cached_mtime = cache_info['dir_mtime']
         
         import datetime
         
-        cache_time = datetime.datetime.fromtimestamp(self._cache_timestamps[path])
+        # Check 1: Daily 3am expiry using cache creation time
+        cache_time = datetime.datetime.fromtimestamp(cache_created)
         now = datetime.datetime.now()
         
-        # Calculate 3am on the day AFTER the cache was created
         cache_date = cache_time.date()
         next_day_3am = datetime.datetime.combine(
             cache_date + datetime.timedelta(days=1), 
             datetime.time(3, 0, 0)
         )
         
-        # Cache is invalid if we're past 3am the day after it was created
         if now >= next_day_3am:
             logging.debug(f"Cache invalidated for {path} - past 3am cutoff ({next_day_3am})")
             return False
         
-        return True 
+        # Check 2: Directory modification time
+        if current_mtime != cached_mtime:
+            logging.debug(f"Cache invalidated for {path} - directory modified (was {cached_mtime}, now {current_mtime})")
+            return False
+        
+        logging.debug(f"Cache is valid for {path}")
+        return True
 
-    def _cache_directory_scan(self, path, scan_type='both'):
-        """Cache directory contents with modification time tracking"""
+    def _cache_directory_scan(self, path):
+        """Cache directory contents - always scan both files and dirs"""
         self._ensure_cache_initialized()  
         if not os.path.exists(path):
             return [], []
         
+        current_mtime = self._get_dir_mtime(path)
+        
         # Check if cache is valid
-        if self._is_cache_valid(path):
-            cache_key = f"{path}_{scan_type}"
-            if cache_key in self._dir_cache:
+        if self._is_cache_valid(path, current_mtime):
+            if path in self._dir_cache:
                 logging.debug(f"Using cached directory scan for {path}")
-                return self._dir_cache[cache_key]
+                return self._dir_cache[path]
+        
+        logging.debug(f"Performing fresh directory scan for {path}")
         
         files = []
         dirs = []
@@ -148,9 +164,9 @@ class USB_Photos(BaseService):
                     if entry.name.startswith("."):
                         continue
                     
-                    if entry.is_file() and scan_type in ['both', 'files']:
+                    if entry.is_file():
                         files.append((entry.stat().st_mtime, entry.name))
-                    elif entry.is_dir() and scan_type in ['both', 'dirs']:
+                    elif entry.is_dir():
                         dirs.append((entry.stat().st_mtime, entry.name))
         except OSError:
             return [], []
@@ -159,21 +175,16 @@ class USB_Photos(BaseService):
         files.sort(key=lambda x: x[0], reverse=True)
         dirs.sort(key=lambda x: x[0], reverse=True)
         
-        # Cache the results with CURRENT TIME as cache timestamp
-        import time
-        self._cache_timestamps[path] = time.time()  # ← Use current time!
-        self._dir_cache[f"{path}_both"] = (files, dirs)
-        self._dir_cache[f"{path}_files"] = (files, [])
-        self._dir_cache[f"{path}_dirs"] = ([], dirs)
+        self._cache_timestamps[path] = {
+            'created': time.time(),        # When cache was created (for 3am expiry)
+            'dir_mtime': current_mtime     # Directory's mtime (for change detection)
+        }
+        
+        self._dir_cache[path] = (files, dirs)
         
         logging.debug(f"Cached directory scan for {path}: {len(files)} files, {len(dirs)} dirs")
         
-        if scan_type == 'files':
-            return files, []
-        elif scan_type == 'dirs':
-            return [], dirs
-        else:
-            return files, dirs
+        return files, dirs
 
     def invalidate_cache(self):
         """Manually invalidate cache"""
@@ -406,18 +417,17 @@ class USB_Photos(BaseService):
 
     # All images directly inside '/photoframe' directory will be displayed without any keywords
     def getBaseDirImages(self):
-        logging.debug("getBaseDirImages()")
         if not os.path.exists(self.baseDir):
             return []
         
-        files, _ = self._cache_directory_scan(self.baseDir, 'files')
+        files, _ = self._cache_directory_scan(self.baseDir)
         return [filename for _, filename in files]
 
     def getAllAlbumNames(self):
         if not os.path.exists(self.baseDir):
             return []
         
-        _, dirs = self._cache_directory_scan(self.baseDir, 'dirs')
+        _, dirs = self._cache_directory_scan(self.baseDir)
         return [dirname for _, dirname in dirs]
 
     def selectImageFromAlbum(self, destinationDir, supportedMimeTypes, displaySize, randomize):
@@ -452,14 +462,14 @@ class USB_Photos(BaseService):
         images = []
         if keyword == "_PHOTOFRAME_":
             # Use cached base directory files (already sorted by date)
-            files, _ = self._cache_directory_scan(self.baseDir, 'files')
+            files, _ = self._cache_directory_scan(self.baseDir)
             file_names = [filename for _, filename in files]
             images = self.getAlbumInfo(self.baseDir, file_names, pre_sorted=True)
         else:
             album_path = os.path.join(self.baseDir, keyword)
             if os.path.isdir(album_path):
                 # Cache album directory contents
-                files, _ = self._cache_directory_scan(album_path, 'files')
+                files, _ = self._cache_directory_scan(album_path)
                 file_names = [filename for _, filename in files]
                 images = self.getAlbumInfo(album_path, file_names, pre_sorted=True)
             else:

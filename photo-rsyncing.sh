@@ -66,7 +66,7 @@ sync_photos() {
     local server_name="$3"
     
     log_message "Syncing $server_name ($dest_ip)..."
-    if rsync -az --no-perms --no-owner --no-group --modify-window=1 "$source" john@"$dest_ip":/mnt/usb1/photoframe/; then
+    if rsync -az --no-perms --no-owner --no-group --modify-window=1 --exclude='*/' --exclude='.*/' "$source" john@"$dest_ip":/mnt/usb1/photoframe/; then
         log_message "✓ Successfully synced to $server_name"
     else
         handle_error "Failed to sync $source to $server_name ($dest_ip)"

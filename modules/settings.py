@@ -58,7 +58,7 @@ class settings:
             'enable-cache': 1,
             # wait = wait for network, ignore = try next (rely on cache or non-internet connections)
             'offline-behavior': 'wait',
-            'decay_factor':0.003,
+            'decay_factor':0.0005,
         }
 
     def load(self):

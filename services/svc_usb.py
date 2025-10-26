@@ -22,6 +22,7 @@ import json
 import random
 import math
 import time
+import heapq
 
 from modules.helper import helper
 from modules.network import RequestResult
@@ -193,29 +194,41 @@ class USB_Photos(BaseService):
         logging.debug("Directory cache invalidated")
 
     def weighted_random_selection(self, files, max_images):
-        """Weighted selection favoring newer files (assumes files are pre-sorted)"""
+        """Weighted selection favoring newer files (assumes files are pre-sorted newest-first).
+        Uses proper sampling without replacement so older files still appear.
+        """
         if len(files) <= max_images:
-            return files
-        
-        # Get decay factor from global settings
+            return list(files)
+
+        # Get decay factor from settings, but respect explicit 0
         from modules.settings import settings
         settings_mgr = settings()
         settings_mgr.load()
-        decay_factor = float(settings_mgr.getUser('decay_factor') or 0.003)
-    
+        raw_decay = settings_mgr.getUser('decay_factor')
+        try:
+            decay_factor = 0.0005 if raw_decay is None else float(raw_decay)
+        except (TypeError, ValueError):
+            decay_factor = 0.0005
+
+        # No weighting: uniform sample without replacement over the full set
+        if decay_factor <= 0:
+            return random.sample(list(files), max_images)
+
+        # Compute weights newest-first
         weights = [math.exp(-i * decay_factor) for i in range(len(files))]
-        
-        # Use random.choices then remove duplicates to maintain weighting
-        selected_with_dupes = random.choices(files, weights=weights, k=max_images * 2)
-        
-        # Remove duplicates while preserving weighting bias
-        seen = set()
-        selected = []
-        for item in selected_with_dupes:
-            if item not in seen and len(selected) < max_images:
-                seen.add(item)
-                selected.append(item)
-        
+
+        # Weighted sampling without replacement (Efraimidis–Spirakis)
+        # Generate a key per item and take the top-k by key
+        keys = []
+        for idx, w in enumerate(weights):
+            if w <= 0:
+                w = 1e-12  # guard against zero/negative due to numeric issues
+            u = random.random()
+            # Equivalent stable variant: key = math.log(u) / w and take smallest
+            key = u ** (1.0 / w)
+            keys.append((key, files[idx]))
+
+        selected = [name for _, name in heapq.nlargest(max_images, keys, key=lambda kv: kv[0])]
         return selected
 
     def preSetup(self):

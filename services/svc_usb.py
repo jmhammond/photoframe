@@ -193,6 +193,15 @@ class USB_Photos(BaseService):
         self._cache_timestamps.clear()
         logging.debug("Directory cache invalidated")
 
+    def clearState(self):
+        """Clear the cached image list state, forcing a fresh selection on next request"""
+        if hasattr(self, '_STATE'):
+            if '_NEXT_SCAN' in self._STATE:
+                self._STATE['_NEXT_SCAN'].clear()
+            if '_NUM_IMAGES' in self._STATE:
+                self._STATE['_NUM_IMAGES'].clear()
+            logging.debug("Image list state cleared - will rescan on next request")
+
     def weighted_random_selection(self, files, max_images):
         """Weighted selection favoring newer files (assumes files are pre-sorted newest-first).
         Uses proper sampling without replacement so older files still appear.
@@ -205,14 +214,20 @@ class USB_Photos(BaseService):
         settings_mgr = settings()
         settings_mgr.load()
         raw_decay = settings_mgr.getUser('decay_factor')
+        logging.debug(f"Raw decay_factor from settings: {raw_decay} (type: {type(raw_decay)})")
         try:
             decay_factor = 0.0005 if raw_decay is None else float(raw_decay)
         except (TypeError, ValueError):
             decay_factor = 0.0005
+        
+        logging.debug(f"Using decay_factor: {decay_factor}")
 
         # No weighting: uniform sample without replacement over the full set
         if decay_factor <= 0:
+            logging.debug(f"Using uniform random selection across all {len(files)} files")
             return random.sample(list(files), max_images)
+        
+        logging.debug(f"Using weighted selection with decay_factor={decay_factor}")
 
         # Compute weights newest-first
         weights = [math.exp(-i * decay_factor) for i in range(len(files))]

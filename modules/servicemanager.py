@@ -480,6 +480,14 @@ class ServiceManager:
                 logging.info('%s was %d hours old when we refreshed' % (k, svc.freshnessImagesFor(k)))
                 svc._clearImagesFor(k)
 
+    def clearAllStates(self):
+        """Clear cached image list states to force re-selection (e.g. when settings change)"""
+        logging.info("Clearing all service image list caches due to settings change")
+        for key in self._SERVICES:
+            svc = self._SERVICES[key]["service"]
+            if hasattr(svc, 'clearState'):
+                svc.clearState()
+
     def nextAlbum(self):
         return False
 

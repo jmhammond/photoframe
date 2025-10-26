@@ -143,6 +143,10 @@ class slideshow:
                 self.delayer.set()
             elif event == 'forgetPreload':
                 self.skipPreloadedImage = True
+            elif event == 'settingsChange':
+                # Clear cached image lists when settings change
+                self.services.clearAllStates()
+                logging.info('Settings changed - cleared image list cache')
         return showNext
 
     def startupScreen(self):
